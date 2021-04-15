@@ -1,6 +1,6 @@
 # Windows Terminal + WSL2 Ubuntu 20.04 LTS + Oh-my-Zsh + Powerlevel10k + plugins
 
-<img src="/assets/terminal.png">
+<img src="/assets/terminal-windows.png">
 
 Repository to not forget all...and share with community.
 
