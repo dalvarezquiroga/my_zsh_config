@@ -1,0 +1,28 @@
+# This is Git's per-user configuration file.
+# Please adapt and uncomment the following lines:
+#	name = 
+#	email = dalvarez@MOB101167.hq.k.grp
+
+[user]
+     name = David Alvarez Quiroga
+     email = david.alvarez@nagra.com
+[credential]
+     email = david.alvarez@nagra.com
+     helper = !aws codecommit credential-helper --profile=nvherelease-sts $@
+     UseHttpPath = true
+[core]
+    pager = delta
+[interactive]
+    diffFilter = delta --color-only	
+[delta]
+    features = side-by-side line-numbers decorations
+    syntax-theme = Monokai Extended	
+    line-numbers = true
+    plus-color = "#012800"
+    minus-color = "#340001"
+    side-by-side = false
+    whitespace-error-style = 22 reverse
+[delta "decorations"]
+    commit-decoration-style = bold yellow box ul
+    file-style = bold yellow ul
+    file-decoration-style = none
