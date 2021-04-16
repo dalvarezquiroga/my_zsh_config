@@ -11,7 +11,7 @@
      helper = !aws codecommit credential-helper --profile=nvherelease-sts $@
      UseHttpPath = true
 [help]
-        autocorrect = 20
+    autocorrect = 20
 [receive]
     advertisePushOptions = true
 [pull]
