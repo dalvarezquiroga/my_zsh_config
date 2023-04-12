@@ -91,27 +91,22 @@ source $ZSH/oh-my-zsh.sh
 
 # User configuration
 
-# Screenfetch #
+## Screenfetch ##
 screenfetch -A Linux
 
-# ssh
+## ssh key ##
 export SSH_KEY_PATH="~/.ssh/rsa_id"
 
-## Alias
+## Alias kubecolor ##
 alias k=kubecolor
 complete -F __start_kubectl k
 
-# some more ls aliases
-alias ll='ls -alF'
-alias la='ls -A'
-alias l='ls -CF'
+# kubectl enable
+alias kubectl="kubectl"
 
-###############################
-## SETTINGS COLORS TO LS / LL  #
-################################
-source $(dirname $(gem which colorls))/tab_complete.sh
-alias ls=colorls
-alias ll=colorls
+# EXA https://github.com/ogham/exa#installation
+alias ll="exa -l -g --icons"
+alias llt="exa -1 --icons --tree"
 
 # GIT
 alias gs="git status"
@@ -121,12 +116,6 @@ alias repos="cd /mnt/c/Users/dalvarez/Documents/git"
 
 # Wheter
 alias tiempo='curl -s wttr.in | head -7'
-
-# kubectl enable
-alias kubectl="kubectl"
-
-# Fix DNS
-#alias fixdns="sudo bash /usr/local/bin/fixdns"
 
 # Docker remove all images
 alias docker-remove-images="docker rmi $(docker images -q)"
@@ -149,14 +138,6 @@ alias ec2="aws ec2 describe-instances --filters Name=tag-key,Values=Name --query
 # Compilation flags
 # export ARCHFLAGS="-arch x86_64"
 
-#Change ls colours
-LS_COLORS="ow=01;36;40" && export LS_COLORS
-
-# make cd use the ls colours
-zstyle ':completion:*' list-colors "${(@s.:.)LS_COLORS}"
-autoload -Uz compinit
-compinit
-
 # Set personal aliases, overriding those provided by oh-my-zsh libs,
 # plugins, and themes. Aliases can be placed here, though oh-my-zsh
 # users are encouraged to define aliases within the ZSH_CUSTOM folder.
@@ -169,9 +150,70 @@ alias zshconfig="vi ~/.zshrc"
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 
-# Added by serverless binary installer
-export PATH="$HOME/.serverless/bin:$PATH"
-
 # tabtab source for packages
 # uninstall by removing these lines
 [[ -f ~/.config/tabtab/__tabtab.zsh ]] && . ~/.config/tabtab/__tabtab.zsh || true
+
+####################
+####### KIND #######
+####################
+function kind_create() {
+  echo "---------------> Create registry container unless it already exists <---------------------"
+  reg_name='kind-registry'
+  reg_port='5000'
+  if [ "$(docker inspect -f '{{.State.Running}}' "${reg_name}" 2>/dev/null || true)" != 'true' ]; then
+    docker run \
+      -d --restart=always -p "127.0.0.1:${reg_port}:5000" --name "${reg_name}" \
+      registry:2
+  fi
+
+  echo "-----------------> Create a cluster with the local registry enabled in containerd <------------------"
+  cat <<EOF | kind create cluster --config=-
+  kind: Cluster
+  apiVersion: kind.x-k8s.io/v1alpha4
+  containerdConfigPatches:
+  - |-
+    [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:${reg_port}"]
+      endpoint = ["http://${reg_name}:5000"]
+
+  # three node (two workers) cluster config
+  nodes:
+  - role: control-plane
+    extraPortMappings:
+    - containerPort: 30000
+      hostPort: 30000
+      protocol: TCP
+  - role: worker
+  - role: worker
+EOF
+
+  echo "---------------> Connect the registry to the cluster network if not already connected <------------------"
+  if [ "$(docker inspect -f='{{json .NetworkSettings.Networks.kind}}' "${reg_name}")" = 'null' ]; then
+    docker network connect "kind" "${reg_name}"
+  fi
+
+  echo "----------- > Document the local registry <---------------"
+  # https://github.com/kubernetes/enhancements/tree/master/keps/sig-cluster-lifecycle/generic/1755-communicating-a-local-registry
+  cat <<EOF | kubectl apply -f -
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: local-registry-hosting
+    namespace: kube-public
+  data:
+    localRegistryHosting.v1: |
+      host: "localhost:${reg_port}"
+      help: "https://kind.sigs.k8s.io/docs/user/local-registry/"
+EOF
+
+  # https://kind.sigs.k8s.io/docs/user/loadbalancer/
+  echo "---------------> Create LoadBalancer configuration <-------------------"
+  kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.13.7/config/manifests/metallb-native.yaml
+  kubectl wait --namespace metallb-system --for=condition=ready pod --selector=app=metallb --timeout=90s
+  echo "---------------> Setup address pool used by loadbalancers <----------------------"
+  kubectl apply -f /home/dalvarez/kind/metallb-config.yaml  # Already modified with the output of $ docker network inspect -f '{{.IPAM.Config}}' kind
+}
+
+function kind_delete(){
+  kind delete cluster
+}
