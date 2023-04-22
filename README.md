@@ -184,6 +184,9 @@ set -g @dracula-refresh-rate 5
 # Set your location manually
 set -g @dracula-fixed-location "Móstoles"
 
+# Enable Scroll
+set -g mouse on
+
 # Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
 run '~/.tmux/plugins/tpm/tpm'
 ```
