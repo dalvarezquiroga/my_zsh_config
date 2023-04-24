@@ -1,0 +1,25 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: kuard
+  labels:
+    app: kuard
+spec:
+  containers:
+  - name: kuard
+    image: gcr.io/kuar-demo/kuard-amd64:blue
+    ports:
+    - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kuard
+spec:
+  type: NodePort
+  ports:
+  - name: http
+    nodePort: 30000
+    port: 8080
+  selector:
+    app: kuard
